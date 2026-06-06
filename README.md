@@ -141,9 +141,12 @@ services:
   - type: web
     name: starbucks-drink-orders
     runtime: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
 ```
+
+其中 `plan: free` 代表使用 Render 免費 Web Service。若沒有這一行，Render 可能會要求付款資訊。
 
 如果使用 Web Service，請確認：
 
