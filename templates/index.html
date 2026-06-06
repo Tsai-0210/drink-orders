@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>星巴克飲料統計表</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page">
+    <section class="panel">
+      <div class="brand">
+        <span class="brand-mark">S</span>
+        <div>
+          <h1>星巴克飲料統計表</h1>
+          <p>填好送出即可，同名會更新原本選擇。</p>
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="alert">{{ messages[0] }}</div>
+        {% endif %}
+      {% endwith %}
+
+      {% if order_closed %}
+        <div class="closed-panel">
+          <div class="success-icon">!</div>
+          <h2>本次飲料統計已截止</h2>
+          <p>目前已停止填寫，請洽負責統計的同事。</p>
+        </div>
+      {% else %}
+        <form class="drink-form" method="post">
+          <label>
+            <span>姓名</span>
+            <input type="text" name="name" value="{{ form.get('name', '') }}" placeholder="例如：小美" required autocomplete="name">
+          </label>
+
+          <label>
+            <span>飲料品項</span>
+            <select name="drink" id="drinkSelect" required>
+              <option value="" disabled {% if not form.get('drink') %}selected{% endif %}>請選擇飲料</option>
+              {% for drink in drink_options %}
+                <option value="{{ drink }}" {% if form.get('drink') == drink %}selected{% endif %}>{{ drink }}</option>
+              {% endfor %}
+              <option value="其他" {% if form.get('drink') == '其他' %}selected{% endif %}>其他</option>
+            </select>
+          </label>
+
+          <label class="hidden" id="otherDrinkField">
+            <span>其他品項</span>
+            <input type="text" name="other_drink" value="{{ form.get('other_drink', '') }}" placeholder="請輸入飲料名稱">
+          </label>
+
+          <fieldset>
+            <legend>冷 / 熱</legend>
+            <div class="choice-grid two">
+              {% for option in temperature_options %}
+                <label class="choice">
+                  <input type="radio" name="temperature" value="{{ option }}" {% if form.get('temperature', '冷') == option %}checked{% endif %}>
+                  <span>{{ option }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>容量</legend>
+            <div class="choice-grid three">
+              {% for option in size_options %}
+                <label class="choice">
+                  <input type="radio" name="size" value="{{ option }}" {% if form.get('size', '大杯') == option %}checked{% endif %}>
+                  <span>{{ option }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>糖量</legend>
+            <div class="choice-grid">
+              {% for option in sugar_options %}
+                <label class="choice">
+                  <input type="radio" name="sugar" value="{{ option }}" {% if form.get('sugar', '少糖') == option %}checked{% endif %}>
+                  <span>{{ option }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>冰量</legend>
+            <div class="choice-grid">
+              {% for option in ice_options %}
+                <label class="choice">
+                  <input type="radio" name="ice" value="{{ option }}" {% if form.get('ice', '少冰') == option %}checked{% endif %}>
+                  <span>{{ option }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <label>
+            <span>備註</span>
+            <textarea name="note" rows="3" placeholder="例如：燕麥奶、不要奶泡、加一份濃縮">{{ form.get('note', '') }}</textarea>
+          </label>
+
+          <button class="primary-button" type="submit">送出飲料選擇</button>
+        </form>
+      {% endif %}
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

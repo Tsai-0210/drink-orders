@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>已收到</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page center-page">
+    <section class="panel success-panel">
+      <div class="success-icon">✓</div>
+      <h1>已收到你的飲料選擇</h1>
+      <p>{{ name }}，如果想修改，回首頁用同一個姓名再送出一次即可。</p>
+      <a class="secondary-button" href="{{ url_for('index') }}">回到表單</a>
+    </section>
+  </main>
+</body>
+</html>

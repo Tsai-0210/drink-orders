@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>後台｜星巴克飲料統計</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page admin-page">
+    <section class="panel">
+      <div class="admin-header">
+        <div>
+          <h1>飲料統計後台</h1>
+          <p>目前 {{ orders|length }} 筆選擇</p>
+        </div>
+        <a class="mini-link" href="{{ url_for('index') }}">表單</a>
+      </div>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="alert success">{{ messages[0] }}</div>
+        {% endif %}
+      {% endwith %}
+
+      <div class="status-card {% if order_closed %}closed{% endif %}">
+        <div>
+          <strong>填寫狀態</strong>
+          <p>{% if order_closed %}已截止，同事目前看不到表單。{% else %}開放填寫中，同事可送出或修改選擇。{% endif %}</p>
+        </div>
+        <form method="post" action="{{ url_for('toggle_order_closed') }}">
+          <input type="hidden" name="closed" value="{% if order_closed %}0{% else %}1{% endif %}">
+          <button class="{% if order_closed %}primary-button{% else %}danger-button{% endif %}" type="submit">
+            {% if order_closed %}恢復填寫{% else %}停止填寫{% endif %}
+          </button>
+        </form>
+      </div>
+
+      <div class="admin-actions">
+        <button class="primary-button" type="button" id="copyButton">一鍵複製文字</button>
+        <form method="post" action="{{ url_for('clear_orders') }}" onsubmit="return confirm('確定要清空本次統計嗎？清空後會自動恢復可填寫狀態。');">
+          <button class="danger-button" type="submit">清空本次統計</button>
+        </form>
+      </div>
+
+      <textarea class="copy-box" id="copyText" readonly>{{ copy_text }}</textarea>
+
+      <section class="admin-section">
+        <h2>品項數量</h2>
+        {% if drink_counts %}
+          <div class="count-list">
+            {% for drink, count in drink_counts %}
+              <div class="count-row">
+                <span>{{ drink }}</span>
+                <strong>{{ count }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty">目前還沒有人填寫。</p>
+        {% endif %}
+      </section>
+
+      <section class="admin-section">
+        <h2>同事選擇</h2>
+        {% if orders %}
+          <div class="order-list">
+            {% for order in orders %}
+              <article class="order-card">
+                <div class="order-top">
+                  <strong>{{ order.name }}</strong>
+                  <span>{{ order.updated_at }}</span>
+                </div>
+                <p>{{ order.drink }}</p>
+                <div class="tags">
+                  <span>{{ order.temperature }}</span>
+                  <span>{{ order.size }}</span>
+                  <span>{{ order.sugar }}</span>
+                  <span>{{ order.ice }}</span>
+                </div>
+                {% if order.note %}
+                  <p class="note">備註：{{ order.note }}</p>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty">等待第一杯咖啡出現。</p>
+        {% endif %}
+      </section>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
