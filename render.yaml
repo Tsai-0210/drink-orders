@@ -5,3 +5,14 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: starbucks-drink-orders-db
+          property: connectionString
+
+databases:
+  - name: starbucks-drink-orders-db
+    plan: free
+    databaseName: drink_orders
+    user: drink_orders_user

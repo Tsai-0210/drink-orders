@@ -8,7 +8,10 @@ from flask import Flask, flash, g, redirect, render_template, request, url_for
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATABASE = Path(environ.get("STARBUCKS_DATABASE", BASE_DIR / "data" / "drink_orders.sqlite3"))
+DATABASE_URL = environ.get("DATABASE_URL")
+SQLITE_DATABASE = Path(
+    environ.get("STARBUCKS_DATABASE", BASE_DIR / "data" / "drink_orders.sqlite3")
+)
 
 DRINK_OPTIONS = [
     "美式咖啡",
@@ -32,14 +35,29 @@ ORDER_CLOSED_KEY = "order_closed"
 
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "change-me-for-production"
+app.config["SECRET_KEY"] = environ.get("SECRET_KEY", "change-me-for-production")
+
+
+def is_postgres():
+    return bool(DATABASE_URL)
+
+
+def sql(query):
+    return query.replace("?", "%s") if is_postgres() else query
 
 
 def get_db():
     if "db" not in g:
-        DATABASE.parent.mkdir(parents=True, exist_ok=True)
-        g.db = sqlite3.connect(str(DATABASE))
-        g.db.row_factory = sqlite3.Row
+        if is_postgres():
+            from psycopg import connect
+            from psycopg.rows import dict_row
+
+            postgres_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+            g.db = connect(postgres_url, row_factory=dict_row)
+        else:
+            SQLITE_DATABASE.parent.mkdir(parents=True, exist_ok=True)
+            g.db = sqlite3.connect(str(SQLITE_DATABASE))
+            g.db.row_factory = sqlite3.Row
     return g.db
 
 
@@ -52,21 +70,39 @@ def close_db(_exception=None):
 
 def init_db():
     db = get_db()
-    db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            drink TEXT NOT NULL,
-            temperature TEXT NOT NULL,
-            size TEXT NOT NULL,
-            sugar TEXT NOT NULL,
-            ice TEXT NOT NULL,
-            note TEXT DEFAULT '',
-            updated_at TEXT NOT NULL
+    if is_postgres():
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                drink TEXT NOT NULL,
+                temperature TEXT NOT NULL,
+                size TEXT NOT NULL,
+                sugar TEXT NOT NULL,
+                ice TEXT NOT NULL,
+                note TEXT DEFAULT '',
+                updated_at TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
+    else:
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                drink TEXT NOT NULL,
+                temperature TEXT NOT NULL,
+                size TEXT NOT NULL,
+                sugar TEXT NOT NULL,
+                ice TEXT NOT NULL,
+                note TEXT DEFAULT '',
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS app_settings (
@@ -76,7 +112,7 @@ def init_db():
         """
     )
     db.execute(
-        "INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)",
+        sql("INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING"),
         (ORDER_CLOSED_KEY, "0"),
     )
     db.commit()
@@ -93,7 +129,7 @@ def clean_required(value):
 
 def get_setting(key, default=""):
     row = get_db().execute(
-        "SELECT value FROM app_settings WHERE key = ?",
+        sql("SELECT value FROM app_settings WHERE key = ?"),
         (key,),
     ).fetchone()
     return row["value"] if row else default
@@ -101,11 +137,13 @@ def get_setting(key, default=""):
 
 def set_setting(key, value):
     get_db().execute(
-        """
-        INSERT INTO app_settings (key, value)
-        VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        """,
+        sql(
+            """
+            INSERT INTO app_settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """
+        ),
         (key, value),
     )
 
@@ -172,21 +210,22 @@ def index():
             flash("請填寫姓名、飲料品項與所有選項。")
             return render_order_form(request.form)
 
-        db = get_db()
-        db.execute(
-            """
-            INSERT INTO orders
-                (name, drink, temperature, size, sugar, ice, note, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(name) DO UPDATE SET
-                drink = excluded.drink,
-                temperature = excluded.temperature,
-                size = excluded.size,
-                sugar = excluded.sugar,
-                ice = excluded.ice,
-                note = excluded.note,
-                updated_at = excluded.updated_at
-            """,
+        get_db().execute(
+            sql(
+                """
+                INSERT INTO orders
+                    (name, drink, temperature, size, sugar, ice, note, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET
+                    drink = excluded.drink,
+                    temperature = excluded.temperature,
+                    size = excluded.size,
+                    sugar = excluded.sugar,
+                    ice = excluded.ice,
+                    note = excluded.note,
+                    updated_at = excluded.updated_at
+                """
+            ),
             (
                 name,
                 drink,
@@ -198,7 +237,7 @@ def index():
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ),
         )
-        db.commit()
+        get_db().commit()
         return render_template("thanks.html", name=name)
 
     return render_order_form()
